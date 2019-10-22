@@ -160,12 +160,49 @@ function CONTENT_INJECT_CONSOLE_INPUT(next_level, message, time, ...args) {
     return message;
 }
     
+function CONTENT_INJECT_UTILS_CONVERT(value, indentSize=0, stringify=true) {
+    if (CONTENT_INJECT_UTILS_NATIVE_FUNCTION(value)) {
+        // native function
+    }
+    else if (typeof value == 'function') {
+        // function
+    }
+    else if (typeof value == 'object') {
+        if (value.constructor == Array) {
+            // array
+            var newValue = "[";
+            for (var i = 0; i < value.length; i++) {
+                newValue += CONTENT_INJECT_UTILS_CONVERT(value[i], 0) + (i < value.length - 1 ? "," : "");
+            }
+            newValue += "]";
+            value = newValue;
+        }
+        else {
+            // object
+            var props = Object.keys(value);
+            var newValue = " ".repeat(indentSize + 4) + "{\n";
+            for (var i = 0; i < props.length; i++) {
+                newValue += " ".repeat(indentSize + 4) + '\"' + props[i] + '\": ' + CONTENT_INJECT_UTILS_CONVERT(value[props[i]], 0, false) + (i < props.length - 1 ? ",\n" : "");
+            }
+            newValue += "}\n";
+            value = stringify ? newValue : JSON.parse(newValue);
+        }
+    }
+    else if (typeof value == 'string') {
+        value = `"${value}"`;
+    }
+    else if (typeof value == '') {
+        
+    }
+    return stringify && value != undefined ? " ".repeat(indentSize) + value.toString() : value;
+}
 function CONTENT_INJECT_CONSOLE_OUTPUT(next_level, message, time, ...args) {
+    //value = CONTENT_INJECT_UTILS_CONVERT(value);
     for (var i = 0; i < args.length; i++) {
         message = message.replace("%c", (i == 0 ? '' : '</span>') + '<span style="' + args[i].replace('"', '\"') + '">');
     }
     if (args.length > 0) message = message + "</span>";
-    message = '<div style="padding: 2px 6px; box-sizing: border-box; outline: none; text-align: left; min-height: 0px; word-wrap: break-word; border: none; border-bottom: 0.5px solid ' + (next_level == "log" || next_level == "input" || next_level == "output" ? '#707070' : (next_level == "warn"/* || next_level == "violation"*/ ? '#665500' : '#5C0000')) + '; white-space: pre-wrap; width: 100%; background: none;"><table><tr><td style="width: 2.5%; color: orange; user-select: none;">&gt;</td><td style="width: 99%; color: white">' + message
+    message = '<div style="padding: 2px 6px; box-sizing: border-box; outline: none; text-align: left; min-height: 0px; word-wrap: break-word; border: none; border-bottom: 0.5px solid ' + (next_level == "log" || next_level == "input" || next_level == "output" ? '#707070' : (next_level == "warn"/* || next_level == "violation"*/ ? '#665500' : '#5C0000')) + '; white-space: pre-wrap; width: 100%; background: none;"><table><tr><td style="width: 2.5%; color: orange; user-select: none;">&gt;</td><td style="width: 99%; color: white;">' + message
     ;
     message = message + '</td><td style="text-align: right; color: #aaa">' + CONTENT_INJECT_UTILS_TIME(time) + '</td></tr></table></div>';
     return message;
@@ -230,6 +267,19 @@ function CONTENT_INJECT_DEV_TOOLS() {
     CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLSTATE = false;
 }
 
+function CONTENT_INJECT_UTILS_NATIVE_FUNCTION(temp_var_string_value) {
+    var temp_var_string_toString = Object.prototype.toString;
+    var temp_var_string_fnToString = Function.prototype.toString;
+    var temp_var_regex_reHostCtor = /^\[object .+?Constructor\]$/;
+    var temp_var_regex_reNative = RegExp('^' +
+    String(temp_var_string_toString)
+    .replace(/[.*+?^${}()|[\]\/\\]/g, '\\$&')
+    .replace(/toString|(function).*?(?=\\\()| for .+?(?=\\\])/g, '$1.*?') + '$');
+    var temp_var_string_type = typeof temp_var_string_value;
+    return temp_var_string_type == 'function' ? temp_var_regex_reNative.test(temp_var_string_fnToString.call(temp_var_string_value))
+      : (temp_var_string_value && temp_var_string_type == 'object' && temp_var_regex_reHostCtor.test(temp_var_string_toString.call(temp_var_string_value))) || false;
+}   
+
 function CONTENT_INJECT_DEV_TOOLS_ADDEVENTLISTENERS() {
     document.getElementById("CONTENT_INJECT_CLOSE_BUTTON").addEventListener("click", function() {
 	    var element = document.getElementById("CONTENT_INJECT_DEV_CONSOLE");
@@ -245,17 +295,23 @@ function CONTENT_INJECT_DEV_TOOLS_ADDEVENTLISTENERS() {
                     var temp_var_a = CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUT;
                     if (temp_var_a - 1 >= 0 && CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUTS.length > 0) {
                         CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUT--;
-                        var temp_input = CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUTS[CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUT]
-                        document.getElementById("CONTENT_INJECT_CONSOLE_INPUT_TEXT").value = temp_input ? temp_input : "";
+                        var temp_input = CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUTS[CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUT];
+                        temp_input = temp_input ? temp_input : "";
+                        document.getElementById("CONTENT_INJECT_CONSOLE_INPUT_TEXT").value = temp_input;
+                        document.getElementById("CONTENT_INJECT_CONSOLE_INPUT_TEXT").setSelectionRange(temp_input.length, temp_input.length);
                     }
+                    ev.preventDefault();
                 }
                 else if (ev.key == "ArrowDown") {
                     var temp_var_a = CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUT;
                     if (temp_var_a + 1 <= CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUTS.length && CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUTS.length > 0) {
                         CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUT++;
-                        var temp_input = CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUTS[CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUT]
-                        document.getElementById("CONTENT_INJECT_CONSOLE_INPUT_TEXT").value = temp_input ? temp_input : "";
+                        var temp_input = CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUTS[CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUT];
+                        temp_input = temp_input ? temp_input : "";
+                        document.getElementById("CONTENT_INJECT_CONSOLE_INPUT_TEXT").value = temp_input
+                        document.getElementById("CONTENT_INJECT_CONSOLE_INPUT_TEXT").setSelectionRange(temp_input.length, temp_input.length);
                     }
+                    ev.preventDefault();
                 }
             }
             if (!ev.shiftKey && ev.key == "Enter") {
@@ -270,7 +326,7 @@ function CONTENT_INJECT_DEV_TOOLS_ADDEVENTLISTENERS() {
                         CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUT = CODE_RUNNER_0_0_0_0_0_0_0_OPTIONS.DEVTOOLCONSOLEINPUTS.length;
                         console.input(element_value);
                         var content_inject_console_output = eval(element_value);
-                        console.output("%c" + content_inject_console_output, "color: gray");
+                        console.output("%c" + CONTENT_INJECT_UTILS_CONVERT(content_inject_console_output), "color: gray");
                     }
                     catch(err) {
                         //var console_log = {
